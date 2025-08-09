@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from models.user_model import User
+from schemas.user_schema import UserCreate
 
 ROLE_LIMITS = {
     "president": 1,
@@ -8,8 +9,14 @@ ROLE_LIMITS = {
     "member": 5
 }
 
-def create_user(db: Session, name: str):
-    user = User(name=name)
+def create_user(db: Session, user_data: UserCreate):
+    user = User(
+        name=user_data.name,
+        phone=user_data.phone,
+        email=user_data.email,
+        alternative_Phone=user_data.alternative_Phone,
+        role=user_data.role or "general"
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
