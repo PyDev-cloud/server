@@ -1,26 +1,17 @@
-from pydantic import BaseModel,validator
-from datetime import date
+# schemas/instalment_schema.py
+from pydantic import BaseModel
 
 class InstalmentCreate(BaseModel):
-    month: str  # keep as string from frontend (YYYY-MM)
+    user_id: int | None = None   # None → all users
+    months: int                  # কত মাসের dues create
     amount_due: float
-    global_user: bool
-    user_id: int | None
 
-    @validator("month")
-    def parse_month(cls, v):
-        # Convert YYYY-MM to date object (first day of month)
-        parts = v.split("-")
-        if len(parts) == 2:
-            year, month = map(int, parts)
-            return date(year, month, 1)
-        raise ValueError("month must be in YYYY-MM format")
-
-class InstalmentSchema(BaseModel): 
+class InstalmentOut(BaseModel):
     id: int
-    month: date
+    user_id: int
+    month: int
     amount_due: float
-    user_id: int | None
+    status: str
 
     class Config:
         orm_mode = True

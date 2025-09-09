@@ -1,70 +1,131 @@
 # services/instalment_service.py
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from models.instalment_model import Instalment
 from models.user_model import User
+from models.instalment_model import Instalment
+from models.ledger_model import Ledger,LedgerCategory
+from datetime import datetime, timedelta
 from schemas.Instalment_schema import InstalmentCreate
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
-
-def create_instalment(db: Session, instalment_data: InstalmentCreate):
-    """
-    Create instalment for a specific user or all users.
-    If user_id is provided, creates for that user.
-    Otherwise, creates for all users.
-    """
-    if instalment_data.user_id:
-        # Check if instalment exists for this user & month
-        exist = db.query(Instalment).filter(
-            and_(
-                Instalment.user_id == instalment_data.user_id,
-                Instalment.month == instalment_data.month
-            )
-        ).first()
-
-        if exist:
-            return {"message": "Instalment already created for this month"}
-
-        # Create instalment
-        instalment = Instalment(
-            user_id=instalment_data.user_id,
-            month=instalment_data.month,
-            amount_due=instalment_data.amount_due
-        )
-        db.add(instalment)
-        db.commit()
-        db.refresh(instalment)
-        return {"message": "Instalment created successfully", "instalment_id": instalment.id}
-
+def create_instalments(db: Session, data: InstalmentCreate):
+    users = []
+    if data.user_id:
+        user = db.query(User).filter_by(id=data.user_id).first()
+        if not user:
+            raise Exception("User not found")
+        users.append(user)
     else:
-        # Check if instalment exists for all users for this month
         users = db.query(User).all()
-        existing_users = db.query(Instalment.user_id).filter(
-            Instalment.month == instalment_data.month
-        ).all()
-        existing_user_ids = {uid for (uid,) in existing_users}
 
-        created_count = 0
-        for user in users:
-            if user.id in existing_user_ids:
+    created_count = 0
+    today = datetime.today()
+    
+    for user in users:
+        for i in range(data.months):
+            month_dt = today + timedelta(days=i*30)  # approx next months
+            month = month_dt.month
+            year = month_dt.year
+
+            exist = db.query(Instalment).filter_by(user_id=user.id, month=month).first()
+            if exist:
                 continue
-            instalment = Instalment(
+
+            inst = Instalment(
                 user_id=user.id,
-                month=instalment_data.month,
-                amount_due=instalment_data.amount_due
+                month=month,
+                amount_due=data.amount_due,
+                status="due"
             )
-            db.add(instalment)
+            db.add(inst)
+            db.commit()
+            db.refresh(inst)
             created_count += 1
 
-        if created_count == 0:
-            return {"error": "Instalment already created for this month for all users"}
+            # Ledger entry
+            category = db.query(LedgerCategory).filter_by(type="income", month=month).first()
+            if not category:
+                category = LedgerCategory(name=month_dt.strftime("%B"), type="income", month=month)
+                db.add(category)
+                db.commit()
+                db.refresh(category)
 
-        db.commit()
-        return {"message": f"Instalments created successfully for {created_count} users"}
+            ledger = Ledger(
+                user_id=user.id,
+                category_id=category.id,
+                amount=data.amount_due,
+                year=year,
+                month=month,
+                status="due",
+                description=f"{category.name} instalment for {user.name}"
+            )
+            db.add(ledger)
+    db.commit()
+    return {"message": f"{created_count} instalments created"}
 
 
-def instalment_get_id(db: Session, user_id: int):
+
+
+
+
+def create_full_dues_for_user(db: Session, user_id: int, dues_dict: dict):
     """
-    Get all instalments for a specific user
+    Auto-create instalments & ledger for a user from their first instalment until now.
+    - dues_dict: {month:int -> amount:float}
     """
-    instalments = db.query(Instalment).filter_by(user_id=user_id).all()
-    return instalments
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        raise Exception("User not found")
+
+    # প্রথম instalment date বের করা
+    first_inst = db.query(Instalment)\
+               .filter_by(user_id=user.id)\
+               .order_by(Instalment.year.asc(), Instalment.month.asc())\
+               .first()
+    if first_inst:
+        # Column থেকে value নেওয়ার সময় int cast করা
+        start_year = int(first_inst.year)
+        start_month = int(first_inst.month)
+    else:
+        today = datetime.today()
+        start_year = today.year
+        start_month = today.month
+
+    today = datetime.today()
+    current = datetime(start_year, start_month, 1)
+    created_count = 0
+
+    while current <= today:
+        month = current.month
+        year = current.year
+        amount_due = dues_dict.get(month, 5000)  # মাস অনুযায়ী default dues
+
+        # Instalment create
+        exist_inst = db.query(Instalment).filter_by(user_id=user.id, month=month, year=year).first()
+        if not exist_inst:
+            inst = Instalment(user_id=user.id, month=month, year=year,
+                              amount_due=amount_due, status="due")
+            db.add(inst)
+            db.commit()
+            db.refresh(inst)
+            created_count += 1
+
+            # LedgerCategory create if not exists
+            category = db.query(LedgerCategory).filter_by(type="income", month=month).first()
+            if not category:
+                category = LedgerCategory(name=current.strftime("%B"), type="income", month=month)
+                db.add(category)
+                db.commit()
+                db.refresh(category)
+
+            # Ledger create
+            ledger = Ledger(user_id=user.id, category_id=category.id, amount=amount_due,
+                            year=year, month=month, status="due",
+                            description=f"{category.name} instalment for {user.name}")
+            db.add(ledger)
+
+        # next month
+        current += relativedelta(months=1)
+
+    db.commit()
+    return {"message": f"{created_count} dues created for user {user.name}"}

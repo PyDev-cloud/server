@@ -24,6 +24,8 @@ class User(Base):
     nominees = relationship("Nominee", back_populates="user", cascade="all, delete-orphan")
     kids = relationship("Kid", back_populates="user", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="user", cascade="all, delete-orphan")
+    ledger_entries = relationship("Ledger", back_populates="user")
+    instalments = relationship("Instalment", back_populates="user")
 
     
 class UserProfile(Base):

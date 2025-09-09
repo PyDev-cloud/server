@@ -1,32 +1,32 @@
-from fastapi import APIRouter, Depends, HTTPException
+# routes/instalment_routes.py
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
-from schemas.Instalment_schema import InstalmentCreate, InstalmentSchema
-from services.instalment_service import create_instalment, instalment_get_id
-from typing import List
+from schemas.Instalment_schema import InstalmentCreate
+from services.instalment_service import create_instalments, create_dues_for_new_user
 
-router = APIRouter(
-    prefix="/instalment",
-    tags=["Instalment"]
-)
+router = APIRouter(prefix="/instalments", tags=["Instalments"])
+
+@router.post("/create/")
+def create_instalment_route(data: InstalmentCreate, db: Session = Depends(get_db)):
+    return create_instalments(db, data)
 
 
-@router.post("/", response_model=dict)
-def add_instalment(data: InstalmentCreate, db: Session = Depends(get_db)):
+@router.post("/new_user_dues/{user_id}")
+def new_user_dues_route(
+    user_id: int,
+    months_back: int,
+    amount_due: float,
+    db: Session = Depends(get_db)
+):
     """
-    Create an instalment for a user or all users.
-    Returns a message and optionally created IDs.
+    Create past dues for a newly joined user.
+    - user_id: ID of the new user
+    - months_back: how many previous months to create
+    - amount_due: amount for each month
     """
-    result = create_instalment(db, data)
-    return result
-
-
-@router.get("/user/{user_id}", response_model=List[InstalmentSchema])
-def get_user_instalments_api(user_id: int, db: Session = Depends(get_db)):
-    """
-    Get all instalments for a specific user.
-    """
-    instalments = instalment_get_id(db, user_id)
-    if not instalments:
-        raise HTTPException(status_code=404, detail="No instalments found for this user")
-    return instalments
+    try:
+        result = create_dues_for_new_user(db, user_id, months_back, amount_due)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

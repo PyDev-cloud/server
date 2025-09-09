@@ -48,7 +48,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 # Create draft user
 # -----------------------
 @router.post("/draft", summary="Create draft user")
-def api_create_user(user_data: UserCreate = Body(...), db: Session = Depends(get_db)):
+async def api_create_user(user_data: UserCreate = Body(...), db: Session = Depends(get_db)):
     user_dict = create_user(db, user_data)
     return {"message": "Draft user created, check email for activation link", "user_id": user_dict["id"],"token": user_dict["token"]}
 
@@ -57,7 +57,7 @@ def api_create_user(user_data: UserCreate = Body(...), db: Session = Depends(get
 # Add draft data
 # -----------------------
 @router.post("/draft/profile", summary="Add draft user profile")
-def add_draft_profile(
+async def add_draft_profile(
     token: str = Query(...),
     profile: Optional[UserProfileCreate] = Body(default=None),
     db: Session = Depends(get_db)
@@ -68,7 +68,7 @@ def add_draft_profile(
 
 
 @router.post("/draft/occupation", summary="Add draft user occupation")
-def add_draft_occupation(
+async def add_draft_occupation(
     token: str = Query(...),
     occupation: Optional[OccupationCreate] = Body(default=None),
     db: Session = Depends(get_db)
@@ -79,7 +79,7 @@ def add_draft_occupation(
 
 
 @router.post("/draft/nominee", summary="Add draft user nominee")
-def add_draft_nominee(
+async def add_draft_nominee(
     token: str = Query(...),
     nominee: Optional[NomineeCreate] = Body(default=None),
     db: Session = Depends(get_db)
@@ -90,7 +90,7 @@ def add_draft_nominee(
 
 
 @router.post("/draft/kid", summary="Add draft user kid")
-def add_draft_kid(
+async def add_draft_kid(
     token: str = Query(...),
     kid: Optional[KidCreate] = Body(default=None),
     db: Session = Depends(get_db)
@@ -101,7 +101,7 @@ def add_draft_kid(
 
 
 @router.post("/draft/document", summary="Add draft user document")
-def add_draft_document(
+async def add_draft_document(
     token: str = Query(...),
     document: Optional[DocumentCreate] = Body(default=None),
     db: Session = Depends(get_db)
@@ -115,7 +115,7 @@ def add_draft_document(
 # Finalize draft user
 # -----------------------
 @router.post("/draft/finalize", summary="Finalize draft user")
-def finalize_draft_user(token: str = Query(...), db: Session = Depends(get_db)):
+async def finalize_draft_user(token: str = Query(...), db: Session = Depends(get_db)):
     return finalize_user(db, token)
 
 
@@ -125,7 +125,7 @@ def finalize_draft_user(token: str = Query(...), db: Session = Depends(get_db)):
 
 # Get all Data for user 
 @router.get("/users/draft/{user_id}", response_model=UserOut, summary="Get draft user details")
-def get_draft_user(user_id: int, db: Session = Depends(get_db)):
+async def get_draft_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -152,7 +152,7 @@ def get_draft_user(user_id: int, db: Session = Depends(get_db)):
 # User Update 
 
 @router.put("/users/draft/{user_id}", response_model=UserOut, summary="Get or update draft user")
-def get_or_update_draft_user(
+async def get_or_update_draft_user(
     user_id: int,
     data: DraftUserUpdateRequest = Body(None),  # optional
     db: Session = Depends(get_db),
@@ -198,35 +198,35 @@ def get_or_update_draft_user(
 # Normal user management
 # -----------------------
 @router.get("/", summary="Get all users")
-def list_all_users(db: Session = Depends(get_db)):
+async def list_all_users(db: Session = Depends(get_db)):
     return get_all_users(db)
 
 
 @router.get("/role/{role}", summary="Get users by role")
-def list_users_by_role(role: str, db: Session = Depends(get_db)):
+async def list_users_by_role(role: str, db: Session = Depends(get_db)):
     return get_users_by_role(db, role)
 
 
 @router.get("/general", summary="Get general users")
-def list_general_users(db: Session = Depends(get_db)):
+async def list_general_users(db: Session = Depends(get_db)):
     return get_general_users(db)
 
 
 @router.delete("/{user_id}", summary="Delete user")
-def remove_user(user_id: int, db: Session = Depends(get_db)):
+async def remove_user(user_id: int, db: Session = Depends(get_db)):
     return delete_user(db, user_id)
 
 
 @router.put("/role/{user_id}", summary="Assign role to user")
-def set_user_role(user_id: int, role: str, db: Session = Depends(get_db)):
+async def set_user_role(user_id: int, role: str, db: Session = Depends(get_db)):
     return assign_role(db, user_id, role)
 
 
 @router.put("/activate/{user_id}", summary="Activate user")
-def activate_user_account(user_id: int, db: Session = Depends(get_db)):
+async def activate_user_account(user_id: int, db: Session = Depends(get_db)):
     return activate_user(db, user_id)
 
 
 @router.put("/deactivate/{user_id}", summary="Deactivate user")
-def deactivate_user_account(user_id: int, db: Session = Depends(get_db)):
+async def deactivate_user_account(user_id: int, db: Session = Depends(get_db)):
     return deactivate_user(db, user_id)

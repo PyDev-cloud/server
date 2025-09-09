@@ -8,6 +8,7 @@ from services.auth_service import set_password, login_user,logout_user # make su
 from utils.security import verify_jwt_token
 from schemas.auth_schema import SetPasswordRequest, PasswordSetResponse
 from schemas.auth_schema import LoginRequest, TokenResponse
+from models.auth_model import UserActivation
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -18,7 +19,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # GET HTML form for setting password
 # -----------------------------
 @router.get("/auth/set-password", response_class=HTMLResponse)
-def get_set_password(request: Request, token: str):
+async def get_set_password(request: Request, token: str):
     return templates.TemplateResponse("set_password.html", {"request": request, "token": token})
 
 
@@ -26,7 +27,7 @@ def get_set_password(request: Request, token: str):
 # POST API to set password
 # -----------------------------
 @router.post("/auth/set-password", response_model=PasswordSetResponse)
-def api_set_password(request: SetPasswordRequest, db: Session = Depends(get_db)):
+async def api_set_password(request: SetPasswordRequest, db: Session = Depends(get_db)):
     user = set_password(db, request.token, request.password)
     if not user:
         raise HTTPException(status_code=400, detail="Invalid token")
@@ -37,7 +38,7 @@ def api_set_password(request: SetPasswordRequest, db: Session = Depends(get_db))
 # POST API for login
 # -----------------------------
 @router.post("/auth/login", response_model=TokenResponse)
-def api_login(request: LoginRequest = Body(...), db: Session = Depends(get_db)):
+async def api_login(request: LoginRequest = Body(...), db: Session = Depends(get_db)):
     token = login_user(db, request.email, request.password)
     if not token:
         raise HTTPException(status_code=400, detail="Invalid credentials")
@@ -48,7 +49,7 @@ def api_login(request: LoginRequest = Body(...), db: Session = Depends(get_db)):
 # Protected route example
 # -----------------------------
 @router.get("/users/me")
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     user = verify_jwt_token(token, db)
     if not user:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -57,6 +58,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 @router.post("/auth/logout")
-def api_logout(token: str = Depends(oauth2_scheme)):
+async def api_logout(token: str = Depends(oauth2_scheme)):
     logout_user(token)
     return {"message": "Logout successful"}
