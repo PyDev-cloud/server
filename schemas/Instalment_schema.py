@@ -1,17 +1,19 @@
-# schemas/instalment_schema.py
 from pydantic import BaseModel
+from typing import Optional, List
 
-class InstalmentCreate(BaseModel):
-    user_id: int | None = None   # None → all users
-    months: int                  # কত মাসের dues create
-    amount_due: float
-
-class InstalmentOut(BaseModel):
-    id: int
+class InstalmentBase(BaseModel):
     user_id: int
-    month: int
+    ledger_id: int
     amount_due: float
-    status: str
+    months: List[int]
+    status: Optional[str] = "due"
+    category_id: Optional[int] = None
+
+class InstalmentCreate(InstalmentBase):
+    pass
+
+class InstalmentRead(InstalmentBase):
+    id: int
 
     class Config:
         orm_mode = True

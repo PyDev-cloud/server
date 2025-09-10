@@ -17,7 +17,8 @@ class LedgerCategory(Base):
     month = Column(Integer, nullable=True)  # শুধু monthly income
 
     ledgers = relationship("Ledger", back_populates="category")
-
+    installments = relationship("Instalment", back_populates="category")
+    
 class Ledger(Base):
     __tablename__ = "ledgers"
 
@@ -33,3 +34,4 @@ class Ledger(Base):
 
     user = relationship("User", back_populates="ledger_entries")
     category = relationship("LedgerCategory", back_populates="ledgers")
+    instalments = relationship("Instalment", back_populates="ledger")

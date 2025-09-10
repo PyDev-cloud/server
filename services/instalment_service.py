@@ -8,6 +8,8 @@ from schemas.Instalment_schema import InstalmentCreate
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+from datetime import datetime, timedelta
+
 def create_instalments(db: Session, data: InstalmentCreate):
     users = []
     if data.user_id:
@@ -20,36 +22,25 @@ def create_instalments(db: Session, data: InstalmentCreate):
 
     created_count = 0
     today = datetime.today()
-    
-    for user in users:
-        for i in range(data.months):
-            month_dt = today + timedelta(days=i*30)  # approx next months
-            month = month_dt.month
-            year = month_dt.year
 
+    for user in users:
+        for month in data.months:
+            year = today.year
+
+            # একই ইউজার একই মাস, একই বছরে ইন্সটলমেন্ট আছে কিনা চেক
             exist = db.query(Instalment).filter_by(user_id=user.id, month=month).first()
             if exist:
                 continue
 
-            inst = Instalment(
-                user_id=user.id,
-                month=month,
-                amount_due=data.amount_due,
-                status="due"
-            )
-            db.add(inst)
-            db.commit()
-            db.refresh(inst)
-            created_count += 1
-
-            # Ledger entry
+            # ক্যাটাগরি নিশ্চিত করা
             category = db.query(LedgerCategory).filter_by(type="income", month=month).first()
             if not category:
-                category = LedgerCategory(name=month_dt.strftime("%B"), type="income", month=month)
+                category = LedgerCategory(name=datetime(year, month, 1).strftime("%B"), type="income", month=month)
                 db.add(category)
                 db.commit()
                 db.refresh(category)
 
+            # লেজার তৈরি, ইউজার আইডি সহ
             ledger = Ledger(
                 user_id=user.id,
                 category_id=category.id,
@@ -60,8 +51,26 @@ def create_instalments(db: Session, data: InstalmentCreate):
                 description=f"{category.name} instalment for {user.name}"
             )
             db.add(ledger)
+            db.commit()
+            db.refresh(ledger)
+
+            # ইন্সটলমেন্ট তৈরি, লেজার আইডি সহ
+            inst = Instalment(
+                user_id=user.id,
+                ledger_id=ledger.id,
+                month=month,
+                amount_due=data.amount_due,
+                status="due",
+                category_id=category.id
+            )
+            db.add(inst)
+            created_count += 1
+
     db.commit()
+
     return {"message": f"{created_count} instalments created"}
+
+
 
 
 

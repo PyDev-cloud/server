@@ -9,7 +9,7 @@ class LedgerType(str, enum.Enum):
 class LedgerCategoryBase(BaseModel):
     name: str
     type: LedgerType
-    month: Optional[str] = None
+    month: Optional[int] = None  # ✅ FIXED
 
 class LedgerCategoryCreate(LedgerCategoryBase):
     pass

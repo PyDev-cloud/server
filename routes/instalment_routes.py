@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from schemas.Instalment_schema import InstalmentCreate
-from services.instalment_service import create_instalments, create_dues_for_new_user
-
+from services.instalment_service import create_instalments, create_full_dues_for_user
+from fastapi import APIRouter, Depends, HTTPException
 router = APIRouter(prefix="/instalments", tags=["Instalments"])
 
 @router.post("/create/")
@@ -26,7 +26,7 @@ def new_user_dues_route(
     - amount_due: amount for each month
     """
     try:
-        result = create_dues_for_new_user(db, user_id, months_back, amount_due)
+        result = create_full_dues_for_user(db, user_id, months_back, amount_due)
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

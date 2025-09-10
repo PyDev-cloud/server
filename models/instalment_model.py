@@ -8,10 +8,14 @@ class Instalment(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    month = Column(Integer)
+    ledger_id = Column(Integer, ForeignKey("ledgers.id"))
     amount_due = Column(Float)
+    month = Column(Integer)
     status = Column(String, default="due")  # due / partial / paid
-    ledger_id = Column(Integer, ForeignKey("ledgers.id"), nullable=True)
+    category_id = Column(Integer, ForeignKey("ledger_categories.id"), nullable=True)
 
     user = relationship("User", back_populates="instalments")
-    ledger = relationship("Ledger")
+    ledger = relationship("Ledger", back_populates="instalments")
+    deductions = relationship("PaymentDeduction", back_populates="installment")
+    category = relationship("LedgerCategory", back_populates="installments")
+
