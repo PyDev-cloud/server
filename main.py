@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from database import Base, engine
-from routes import user_routes, instalment_routes, auth_router, payment_routers,ledger_routers
+from routes import user_routes, instalment_routes, auth_router, payment_routers,ledger_routers,expense_router,companyAccount_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # ডাটাবেস টেবিল তৈরি
@@ -27,6 +27,8 @@ app.include_router(instalment_routes.router)
 app.include_router(auth_router.router)
 app.include_router(payment_routers.router)
 app.include_router(ledger_routers.router)
+app.include_router(expense_router.router)
+app.include_router(companyAccount_router.router)
 
 @app.get("/")
 def home():

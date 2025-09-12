@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Tuple
 from database import get_db  # Your DB dependency
 from models.user_model import User, UserProfile, OccupationInfo, Nominee, Kid, Document
+from utils.permissions import require_roles
 from schemas.user_schema import (
     UserCreate,
     UserUpdate,
@@ -44,14 +45,19 @@ from services.user_service import (
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
+
+
 # -----------------------
 # Create draft user
 # -----------------------
 @router.post("/draft", summary="Create draft user")
-async def api_create_user(user_data: UserCreate = Body(...), db: Session = Depends(get_db)):
+async def api_create_user(
+    user_data: UserCreate = Body(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
+):
     user_dict = create_user(db, user_data)
-    return {"message": "Draft user created, check email for activation link", "user_id": user_dict["id"],"token": user_dict["token"]}
-
+    return {"message": "Draft user created, check email for activation link", "user_id": user_dict["id"], "token": user_dict["token"]}
 
 # -----------------------
 # Add draft data
@@ -60,7 +66,8 @@ async def api_create_user(user_data: UserCreate = Body(...), db: Session = Depen
 async def add_draft_profile(
     token: str = Query(...),
     profile: Optional[UserProfileCreate] = Body(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
 ):
     if profile is None:
         return {"detail": "No profile data provided"}
@@ -71,7 +78,8 @@ async def add_draft_profile(
 async def add_draft_occupation(
     token: str = Query(...),
     occupation: Optional[OccupationCreate] = Body(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
 ):
     if occupation is None:
         return {"detail": "No occupation data provided"}
@@ -82,7 +90,8 @@ async def add_draft_occupation(
 async def add_draft_nominee(
     token: str = Query(...),
     nominee: Optional[NomineeCreate] = Body(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
 ):
     if nominee is None:
         return {"detail": "No nominee data provided"}
@@ -93,7 +102,8 @@ async def add_draft_nominee(
 async def add_draft_kid(
     token: str = Query(...),
     kid: Optional[KidCreate] = Body(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
 ):
     if kid is None:
         return {"detail": "No kid data provided"}
@@ -104,7 +114,8 @@ async def add_draft_kid(
 async def add_draft_document(
     token: str = Query(...),
     document: Optional[DocumentCreate] = Body(default=None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
 ):
     if document is None:
         return {"detail": "No document data provided"}
@@ -115,17 +126,23 @@ async def add_draft_document(
 # Finalize draft user
 # -----------------------
 @router.post("/draft/finalize", summary="Finalize draft user")
-async def finalize_draft_user(token: str = Query(...), db: Session = Depends(get_db)):
+async def finalize_draft_user(
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
+):
     return finalize_user(db, token)
 
 
 # -----------------------
-# Update draft user (multi-table) by user_id
+# Get draft user details
 # -----------------------
-
-# Get all Data for user 
 @router.get("/users/draft/{user_id}", response_model=UserOut, summary="Get draft user details")
-async def get_draft_user(user_id: int, db: Session = Depends(get_db)):
+async def get_draft_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
+):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -149,13 +166,16 @@ async def get_draft_user(user_id: int, db: Session = Depends(get_db)):
         "documents": documents,
     }
 
-# User Update 
 
+# -----------------------
+# Update draft user
+# -----------------------
 @router.put("/users/draft/{user_id}", response_model=UserOut, summary="Get or update draft user")
 async def get_or_update_draft_user(
     user_id: int,
     data: DraftUserUpdateRequest = Body(None),  # optional
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("Super Admin", "President", "Finance Secretary"))
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -199,7 +219,8 @@ async def get_or_update_draft_user(
 # -----------------------
 @router.get("/", summary="Get all users")
 async def list_all_users(db: Session = Depends(get_db)):
-    return get_all_users(db)
+    users = db.query(User).filter(User.is_super_admin == False).all()  
+    return users
 
 
 @router.get("/role/{role}", summary="Get users by role")
@@ -213,20 +234,20 @@ async def list_general_users(db: Session = Depends(get_db)):
 
 
 @router.delete("/{user_id}", summary="Delete user")
-async def remove_user(user_id: int, db: Session = Depends(get_db)):
+async def remove_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_roles("Super Admin"))):
     return delete_user(db, user_id)
 
 
 @router.put("/role/{user_id}", summary="Assign role to user")
-async def set_user_role(user_id: int, role: str, db: Session = Depends(get_db)):
+async def set_user_role(user_id: int, role: str, db: Session = Depends(get_db), current_user: User = Depends(require_roles("Super Admin"))):
     return assign_role(db, user_id, role)
 
 
 @router.put("/activate/{user_id}", summary="Activate user")
-async def activate_user_account(user_id: int, db: Session = Depends(get_db)):
+async def activate_user_account(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_roles("Super Admin", "President"))):
     return activate_user(db, user_id)
 
 
 @router.put("/deactivate/{user_id}", summary="Deactivate user")
-async def deactivate_user_account(user_id: int, db: Session = Depends(get_db)):
+async def deactivate_user_account(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_roles("Super Admin", "President"))):
     return deactivate_user(db, user_id)

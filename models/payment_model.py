@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, Date,Enum
 from sqlalchemy.orm import relationship
+from models.instalment_model import Instalment
 from datetime import date
 from database import Base
 import enum
@@ -23,8 +24,9 @@ class PaymentInvoice(Base):
 
     approved_by_finance = Column(Boolean, default=False)
     approved_by_president = Column(Boolean, default=False)
-    status = Column(String, default=InvoiceStatus.PENDING.value)
+    status = Column(Enum(InvoiceStatus), default=InvoiceStatus.PENDING)
 
+    # Relationship
     user = relationship("User", back_populates="invoices")
     deductions = relationship("PaymentDeduction", back_populates="invoice")
 
@@ -33,7 +35,7 @@ class PaymentDeduction(Base):
 
     id = Column(Integer, primary_key=True)
     invoice_id = Column(Integer, ForeignKey("payment_invoices.id"))
-    installment_id = Column(Integer, ForeignKey("instalments.id"))  # ok, string reference
+    installment_id = Column(Integer, ForeignKey("instalments.id"))   
     amount = Column(Float)
 
     invoice = relationship("PaymentInvoice", back_populates="deductions")

@@ -211,7 +211,7 @@ def get_users_by_role(db: Session, role: str):
 
 
 def get_general_users(db: Session):
-    return db.query(User).filter(User.role == "general").all()
+    return db.query(User).filter(User.role == "General User").all()
 
 
 def delete_user(db: Session, user_id: int):
@@ -227,7 +227,7 @@ def assign_role(db: Session, user_id: int, role: str):
     current_count = db.query(User).filter(User.role == role).count()
     if current_count >= ROLE_LIMITS[role]:
         raise HTTPException(status_code=400, detail=f"{role} role is already full")
-    user = db.query(User).filter(User.id == user_id, User.role == "general").first()
+    user = db.query(User).filter(User.id == user_id, User.role == "General User").first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found or not general")
     user.role = role

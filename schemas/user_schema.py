@@ -11,7 +11,7 @@ class UserCreate(BaseModel):
     phone: str
     alternative_phone: Optional[str] = None
     email: EmailStr
-    role: Optional[str] = "general"
+    role: Optional[str] = "General User"
 
     model_config = {
         "from_attributes": True

@@ -1,13 +1,16 @@
-from fastapi import HTTPException
-from functools import wraps
+from fastapi import Depends, HTTPException, status
+from models.user_model import User
+from utils.dependencies import get_current_user
 
-def require_role(role: str):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            user = kwargs.get("user")
-            if not user or user.role != role:
-                raise HTTPException(status_code=403, detail="Not authorized")
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
+def require_roles(*roles: str):
+    def role_checker(current_user: User = Depends(get_current_user)):
+        if current_user.is_super_admin:
+            return current_user  # ✅ Super Admin bypasses role check
+
+        if current_user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Requires one of the roles: {', '.join(roles)}"
+            )
+        return current_user
+    return role_checker
