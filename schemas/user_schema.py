@@ -1,3 +1,4 @@
+import enum
 from pydantic import BaseModel, EmailStr
 from typing import Optional,List
 from datetime import date
@@ -6,12 +7,19 @@ from datetime import date
 # ------------------------
 # User Schemas
 # ------------------------
+
+class UserRole(str, enum.Enum):
+    GENERAL = "General User"
+    President = "President"
+    Finance_Secretary = "Finance Secretary"
+    Office_Admin = "Office Admin"
+    ADMIN = "admin"
 class UserCreate(BaseModel):
     name: str
     phone: str
     alternative_phone: Optional[str] = None
     email: EmailStr
-    role: Optional[str] = "General User"
+    role: UserRole = UserRole.GENERAL 
 
     model_config = {
         "from_attributes": True
